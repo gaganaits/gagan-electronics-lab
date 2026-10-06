@@ -18,16 +18,21 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanPassword = password.trim();
+
       try {
         const res = await fetch("/api/admin/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email: cleanEmail, password: cleanPassword }),
         });
 
         if (res.ok) {
+          if (typeof window !== "undefined") {
+            localStorage.setItem("gel_admin_demo_session", "true");
+          }
           router.push("/admin");
-          router.refresh();
           return;
         }
       } catch (fetchErr) {
@@ -36,8 +41,8 @@ export default function AdminLoginPage() {
 
       // Demo login support for GitHub Pages reviewer demo
       if (
-        (email.toLowerCase() === "admin@gaganelectronicslab.com" || email.toLowerCase() === "gaganaits@gmail.com") &&
-        (password === "GaganLab2026!" || password === "admin123")
+        (cleanEmail === "admin@gaganelectronicslab.com" || cleanEmail === "gaganaits@gmail.com") &&
+        (cleanPassword === "GaganLab2026!" || cleanPassword === "admin123")
       ) {
         if (typeof window !== "undefined") {
           localStorage.setItem("gel_admin_demo_session", "true");
@@ -52,6 +57,15 @@ export default function AdminLoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleQuickDemoLogin = () => {
+    setEmail("admin@gaganelectronicslab.com");
+    setPassword("GaganLab2026!");
+    if (typeof window !== "undefined") {
+      localStorage.setItem("gel_admin_demo_session", "true");
+    }
+    router.push("/admin");
   };
 
   return (
@@ -76,6 +90,25 @@ export default function AdminLoginPage() {
             <span>{errorMsg}</span>
           </div>
         )}
+
+        {/* 1-Click Demo Login Box */}
+        <div className="p-3.5 bg-amber-50/80 border border-amber-200/80 rounded-card-sm text-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-amber-900">Live Demo Access</span>
+            <span className="text-[10px] bg-amber-200/70 text-amber-900 px-1.5 py-0.5 rounded font-mono">Instant</span>
+          </div>
+          <p className="text-[11px] text-amber-800 leading-relaxed">
+            Click below to enter the admin dashboard directly without typing passwords.
+          </p>
+          <button
+            type="button"
+            onClick={handleQuickDemoLogin}
+            className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded font-medium text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+          >
+            <span>Enter Admin Dashboard Directly</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
 
         {/* Login Form */}
         <form onSubmit={handleLogin} className="space-y-4 text-xs sm:text-sm">

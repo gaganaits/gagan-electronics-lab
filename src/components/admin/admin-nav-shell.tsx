@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -17,35 +18,74 @@ interface AdminNavShellProps {
   children: React.ReactNode;
 }
 
-export default function AdminNavShell({ session, children }: AdminNavShellProps) {
+export default function AdminNavShell({ session: initialSession, children }: AdminNavShellProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [session, setSession] = useState<{ email: string; role: string } | null>(initialSession);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  const cleanPath = (pathname || "").replace(/\/$/, "");
+  const isLoginPage = Boolean(cleanPath.endsWith("/admin/login") || cleanPath.includes("/admin/login"));
+
+  useEffect(() => {
+    if (initialSession) {
+      setSession(initialSession);
+      setAuthChecked(true);
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      const demoAuth = localStorage.getItem("gel_admin_demo_session");
+      if (demoAuth === "true") {
+        setSession({
+          email: "admin@gaganelectronicslab.com",
+          role: "Administrator",
+        });
+      }
+    }
+    setAuthChecked(true);
+  }, [initialSession]);
+
+  useEffect(() => {
+    if (authChecked && !session && !isLoginPage) {
+      router.push("/admin/login");
+    }
+  }, [authChecked, session, isLoginPage, router]);
 
   // If on login page, render children directly without admin header
-  if (pathname === "/admin/login") {
+  if (isLoginPage) {
     return <>{children}</>;
+  }
+
+  // Waiting for client-side localStorage auth verification
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-[#F7F6F2] flex items-center justify-center text-xs text-stone-400">
+        <div className="animate-pulse">Loading administration...</div>
+      </div>
+    );
   }
 
   // If unauthenticated and on a protected route, redirect to login
   if (!session) {
-    if (typeof window !== "undefined") {
-      router.push("/admin/login");
-    }
     return (
-      <div className="min-h-screen flex items-center justify-center text-xs text-stone-500">
+      <div className="min-h-screen bg-[#F7F6F2] flex items-center justify-center text-xs text-stone-500">
         Redirecting to login...
       </div>
     );
   }
 
   const handleLogout = async () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("gel_admin_demo_session");
+    }
+    setSession(null);
     try {
       await fetch("/api/admin/auth/logout", { method: "POST" });
-      router.push("/admin/login");
-      router.refresh();
     } catch {
-      router.push("/admin/login");
+      // Fallback for static demo mode
     }
+    router.push("/admin/login");
   };
 
   const navItems = [
@@ -81,8 +121,8 @@ export default function AdminNavShell({ session, children }: AdminNavShellProps)
               {navItems.map((item) => {
                 const isActive =
                   item.href === "/admin"
-                    ? pathname === "/admin"
-                    : pathname.startsWith(item.href);
+                    ? cleanPath.endsWith("/admin") || pathname === "/admin"
+                    : cleanPath.includes(item.href);
                 const Icon = item.icon;
                 return (
                   <Link
@@ -115,10 +155,10 @@ export default function AdminNavShell({ session, children }: AdminNavShellProps)
 
             <div className="text-right hidden sm:block">
               <span className="text-xs font-medium text-stone-800 block">
-                {session.email}
+                {session?.email || "admin@gaganelectronicslab.com"}
               </span>
               <span className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider">
-                {session.role}
+                {session?.role || "Administrator"}
               </span>
             </div>
 
